@@ -31,7 +31,7 @@ tracks_redis = Redis(app, config_prefix="REDIS_TRACKS")
 tracks_redis_my = Redis(app, config_prefix="REDIS_TRACKS_MY")
 tracks_with_diverse_recs_redis = Redis(app, config_prefix="REDIS_TRACKS_WITH_DIVERSE_RECS") 
 tracks_listened_redis = Redis(app, config_prefix="REDIS_LISTENED")
-# recommendations_redis = Redis(app, config_prefix="REDIS_RECOMMENDATIONS")
+recommendations_redis = Redis(app, config_prefix="REDIS_RECOMMENDATIONS")
 
 data_logger = DataLogger(app)
 
@@ -40,7 +40,7 @@ catalog = Catalog(app).load(
     app.config["TRACKS_CATALOG"], app.config["TRACKS_CATALOG_MY"], app.config["TRACKS_WITH_DIVERSE_RECS_CATALOG"]
 )
 catalog.upload_tracks(tracks_redis.connection, tracks_redis_my.connection, tracks_with_diverse_recs_redis.connection)
-# catalog.upload_recommendations(recommendations_redis.connection)
+catalog.upload_recommendations(recommendations_redis.connection)
 
 parser = reqparse.RequestParser()
 parser.add_argument("track", type=int, location="json", required=True)
@@ -73,10 +73,9 @@ class NextTrack(Resource):
         # TODO Seminar 6 step 6: Wire RECOMMENDERS A/B experiment
         treatment = Experiments.MY_RECOMMENDER.assign(user)
         if treatment == Treatment.T1:
-            recommender = MyContextual(tracks_redis_my.connection, 
-                                       None,
-                                       Random(tracks_redis.connection),
-                                       tracks_listened_redis.connection, catalog)
+            recommender = MyContextual(tracks_redis_my.connection,
+                                       Indexed(tracks_redis.connection, recommendations_redis.connection, catalog),
+                                       Random(tracks_redis.connection), tracks_listened_redis.connection, catalog)
         else:
             recommender = Contextual(tracks_redis.connection, catalog)
 
